@@ -1,6 +1,6 @@
 import os
 import subprocess
-from music21 import converter, midi, stream, key, instrument
+from music21 import converter, midi, stream, key, instrument, clef
 from basic_pitch.inference import predict_and_save, Model
 from basic_pitch import ICASSP_2022_MODEL_PATH
 
@@ -87,19 +87,12 @@ def transcribe_melody(input_audio):
     for note in midi_file.flat.notes:
         note.quarterLength = round(note.quarterLength * 4) / 4  # Rounds to nearest 16th note
 
-    # 🎵 Analyze and Apply Tempo
-    tempo = midi_file.metronomeMarkBoundaries()[0][2]  # Get the first tempo marking
-    if tempo:
-        print(f"Detected Tempo: {tempo.number} BPM")
-    else:
-        print("No tempo detected, using default 120 BPM")
-        tempo = midi.MetronomeMark(number=120)  # Default tempo
-    midi_file.insert(0, tempo)
-
     # 🎹 Change Default MIDI Instrument to a Voice Sound
-    voice_instrument = instrument.Instrument(program=52)  # 52 = Choir Aahs
+    # Iterate over parts and change the instrument
     for part in midi_file.parts:
-        part.insert(0, voice_instrument)
+        # Change to a new instrument (e.g., Acoustic Grand Piano = 1)
+        new_instrument = instrument.instrumentFromMidiProgram(52)  # 52 = Choir Aahs 
+        part.insert(0, new_instrument)
 
     # Save the cleaned-up MIDI
     midi_file.write("midi", fp="cleaned_output.mid")
