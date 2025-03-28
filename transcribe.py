@@ -3,6 +3,7 @@ import subprocess
 from music21 import converter, midi, stream, key, instrument, clef
 from basic_pitch.inference import predict_and_save, Model
 from basic_pitch import ICASSP_2022_MODEL_PATH
+from pydub import AudioSegment
 
 
 WORKING_DIR = "/app"
@@ -10,7 +11,8 @@ WORKING_DIR = "/app"
 def transcribe_melody(input_audio):
     # Ensure paths are inside the working directory
     input_audio_path = os.path.join(WORKING_DIR, input_audio)
-    output_dir = os.path.join(WORKING_DIR, "output")
+    song_name = os.path.splitext(os.path.basename(input_audio))[0]
+    output_dir = os.path.join(WORKING_DIR, "output", song_name)
     os.makedirs(output_dir, exist_ok=True)
 
     # Step 1: Run Demucs to separate vocals
@@ -26,11 +28,21 @@ def transcribe_melody(input_audio):
         raise RuntimeError(f"Demucs failed: {demucs_result.stderr}")
 
     # Locate extracted vocals
-    song_name = os.path.splitext(os.path.basename(input_audio))[0]
     vocals_path = os.path.join(WORKING_DIR, f"separated/htdemucs/{song_name}/vocals.wav")
     if not os.path.exists(vocals_path):
         raise FileNotFoundError(f"Vocals file not found: {vocals_path}")
     print(f"✅ Vocals file located: {vocals_path}")
+
+    # Convert vocals to mono
+    print("🔄 Converting vocals to mono...")
+    vocals_audio = AudioSegment.from_file(vocals_path)
+    vocals_audio = vocals_audio.set_channels(1)  # Set to mono
+    mono_vocals_path = os.path.join(output_dir, "vocals_mono.wav")
+    vocals_audio.export(mono_vocals_path, format="wav")
+    print(f"✅ Vocals converted to mono and saved as: {mono_vocals_path}")
+
+    # Update the path to use the mono file
+    vocals_path = mono_vocals_path
 
     # Step 2: Convert vocals to MIDI using Basic Pitch
     print("🔄 Running Basic Pitch to convert vocals to MIDI...")
@@ -47,33 +59,17 @@ def transcribe_melody(input_audio):
         sonify_midi=False,
         save_model_outputs=False,
         save_notes=False,
-        onset_threshold=0.6,
-        frame_threshold=0.5,
-        minimum_note_length=80,
-        minimum_frequency=100,
-        maximum_frequency=1500,
-        melodia_trick=True
+        onset_threshold=0.7, # How easily a note should be split into two (lower = easier to split notes and vice versa)
+        frame_threshold=0.7, # The model confidence required to create a note (lower = allows more notes and vice versa)
+        minimum_note_length=10, # The minimum length required to emit a note, in milliseconds (lower = shorter notes and vice versa)
+        minimum_frequency=100, # The minimum frequency to consider a note in Hz
+        maximum_frequency=1500, # The maximum frequency to consider a note in Hz
+        melodia_trick=False
     )
-    # basic_pitch_result = subprocess.run(
-    #     ["basic-pitch", output_dir, vocals_path, 
-    #         "--save-midi", 
-    #         "--onset-threshold", "0.6", 
-    #         "--frame-threshold", "0.5", 
-    #         "--minimum-note-length", "80", 
-    #         "--minimum-frequency", "100", 
-    #         "--maximum-frequency", "1500", 
-    #         "--model-serialization", "tf", 
-    #         "--no-melodia"
-    #     ],
-    #     capture_output=True,
-    #     text=True
-    # )
-    # print(basic_pitch_result.stdout)
-    # print(basic_pitch_result.stderr)
 
     # Step 3: Tidy up the MIDI file
     print("🔄 Processing MIDI file...")
-    midi_file = converter.parse("output/vocals_basic_pitch.mid")
+    midi_file = converter.parse(os.path.join(output_dir, "vocals_mono_basic_pitch.mid"))
 
     # 🎼 Detect Key Signature
     key_signature = midi_file.analyze('key')
@@ -95,7 +91,8 @@ def transcribe_melody(input_audio):
         part.insert(0, new_instrument)
 
     # Save the cleaned-up MIDI
-    midi_file.write("midi", fp="cleaned_output.mid")
+    cleaned_midi_path = os.path.join(output_dir, "cleaned_output.mid")
+    midi_file.write("midi", fp=cleaned_midi_path)
     print("✅ MIDI file processed and saved as 'cleaned_output.mid'")
 
 # Run the script from the command line

@@ -6,4 +6,6 @@ tensorflow-probability
 coremltools
 scikit-learn<1.6
 music21
+pydub
+deepfilternet
 
