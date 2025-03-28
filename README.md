@@ -29,3 +29,5 @@ The `config.json` file can be amended as required to alter the settings of basic
 - `minimum_frequency` and `maximum_frequency`: These parameters define the frequency range for valid notes. Expanding this range can help capture very low or very high notes that might be missed.
 
 - `melodia_trick`: This heuristic focuses on extracting the most prominent melody. Enabling it can help in melody-dominant tracks (e.g., vocals or lead instruments).
+
+The resulting MIDI file will become available in the `output` directory.

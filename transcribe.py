@@ -96,9 +96,9 @@ def transcribe_melody(input_audio, config):
         part.insert(0, new_instrument)
 
     # Save the cleaned-up MIDI
-    cleaned_midi_path = os.path.join(output_dir, "cleaned_output.mid")
+    cleaned_midi_path = os.path.join(output_dir, f"{song_name}.mid")
     midi_file.write("midi", fp=cleaned_midi_path)
-    print("✅ MIDI file processed and saved as 'cleaned_output.mid'")
+    print("✅ MIDI file processed and saved as:", cleaned_midi_path)
 
 # Run the script from the command line
 if __name__ == "__main__":
