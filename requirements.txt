@@ -1,11 +1,9 @@
 basic-pitch
-torch
-torchaudio
-tensorflow==2.12.0
-tensorflow-probability
 coremltools
-scikit-learn<1.6
 music21
 pydub
-deepfilternet
-
+scikit-learn<1.6
+tensorflow==2.12.0
+tensorflow-probability
+torch
+torchaudio

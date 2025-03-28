@@ -1,5 +1,6 @@
 import os
 import subprocess
+import json
 from music21 import converter, midi, stream, key, instrument, clef
 from basic_pitch.inference import predict_and_save, Model
 from basic_pitch import ICASSP_2022_MODEL_PATH
@@ -8,7 +9,12 @@ from pydub import AudioSegment
 
 WORKING_DIR = "/app"
 
-def transcribe_melody(input_audio):
+def load_config(config_path):
+    """Load settings from a JSON configuration file."""
+    with open(config_path, "r") as f:
+        return json.load(f)
+
+def transcribe_melody(input_audio, config):
     # Ensure paths are inside the working directory
     input_audio_path = os.path.join(WORKING_DIR, input_audio)
     song_name = os.path.splitext(os.path.basename(input_audio))[0]
@@ -19,7 +25,6 @@ def transcribe_melody(input_audio):
     print("🔄 Running Demucs to separate vocals...")
     demucs_result = subprocess.run(
         ["python3", "-m", "demucs.separate", "-n", "htdemucs", "--two-stems=vocals", input_audio_path],
-        capture_output=True,
         text=True
     )
     print(demucs_result.stdout)
@@ -59,12 +64,12 @@ def transcribe_melody(input_audio):
         sonify_midi=False,
         save_model_outputs=False,
         save_notes=False,
-        onset_threshold=0.7, # How easily a note should be split into two (lower = easier to split notes and vice versa)
-        frame_threshold=0.7, # The model confidence required to create a note (lower = allows more notes and vice versa)
-        minimum_note_length=10, # The minimum length required to emit a note, in milliseconds (lower = shorter notes and vice versa)
-        minimum_frequency=100, # The minimum frequency to consider a note in Hz
-        maximum_frequency=1500, # The maximum frequency to consider a note in Hz
-        melodia_trick=False
+        onset_threshold=config["onset_threshold"],
+        frame_threshold=config["frame_threshold"],
+        minimum_note_length=config["minimum_note_length"],
+        minimum_frequency=config["minimum_frequency"],
+        maximum_frequency=config["maximum_frequency"],
+        melodia_trick=config["melodia_trick"]
     )
 
     # Step 3: Tidy up the MIDI file
@@ -79,9 +84,9 @@ def transcribe_melody(input_audio):
     for part in midi_file.parts:
         part.insert(0, key_signature)
 
-    # 🎵 Quantize Notes (snap to nearest 16th note)
-    for note in midi_file.flat.notes:
-        note.quarterLength = round(note.quarterLength * 4) / 4  # Rounds to nearest 16th note
+    # # 🎵 Quantize Notes (snap to nearest 16th note)
+    # for note in midi_file.flat.notes:
+    #     note.quarterLength = round(note.quarterLength * 4) / 4  # Rounds to nearest 16th note
 
     # 🎹 Change Default MIDI Instrument to a Voice Sound
     # Iterate over parts and change the instrument
@@ -98,8 +103,15 @@ def transcribe_melody(input_audio):
 # Run the script from the command line
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) < 2:
-        print("Usage: python transcribe.py <audio_file>")
+    if len(sys.argv) < 3:
+        print("Usage: python transcribe.py <audio_file> <config_file>")
         sys.exit(1)
-    
-    transcribe_melody(sys.argv[1])
+
+    input_audio = sys.argv[1]
+    config_file = sys.argv[2]
+
+    # Load configuration
+    config = load_config(config_file)
+
+    # Run transcription
+    transcribe_melody(input_audio, config)

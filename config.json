@@ -1,0 +1,8 @@
+{
+    "onset_threshold": 0.5,
+    "frame_threshold": 0.45,
+    "minimum_note_length": 5,
+    "minimum_frequency": 100,
+    "maximum_frequency": 1500,
+    "melodia_trick": true
+}
